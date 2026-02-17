@@ -1,0 +1,21 @@
+[package]
+name = "myoro-polymarket-terminal"
+version = "0.1.0"
+edition = "2021"
+description = "Polymarket arbitrage TUI — crypto, sports, weather"
+authors = []
+license = "MIT"
+
+[dependencies]
+ratatui = "0.29"
+crossterm = "0.28"
+tokio = { version = "1", features = ["full"] }
+dotenvy = "0.15"
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+anyhow = "1"
+thiserror = "2"
+serde_json = "1"
+polymarket-client-sdk = { version = "0.4", default-features = false, features = ["clob", "ws", "data", "gamma"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json"] }
+scraper = "0.19"

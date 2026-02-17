@@ -1,0 +1,21 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug TUI",
+      "cargo": { "args": ["build", "--bin=myoro-polymarket-terminal"] },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug tests",
+      "cargo": { "args": ["test", "--no-run", "--bin=myoro-polymarket-terminal"] },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
