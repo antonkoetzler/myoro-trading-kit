@@ -20,3 +20,17 @@ polymarket-client-sdk = { version = "0.4", default-features = false, features = 
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json"] }
 scraper = "0.19"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+rand = { version = "0.8", features = ["small_rng"] }
+rhai = { version = "1", features = ["sync"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+[dev-dependencies]
+mockito = "1"
+
+[lints.rust]
+unsafe_code = "deny"
+
+[lints.clippy]
+# Warn on unwrap/expect outside tests (don't error so existing code compiles)
+unwrap_used = "warn"
+expect_used = "warn"

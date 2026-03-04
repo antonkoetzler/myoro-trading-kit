@@ -72,6 +72,10 @@ impl SignalFeed {
         self.signals.read().map(|g| g.len()).unwrap_or(0)
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn pending_count(&self) -> usize {
         self.signals
             .read()

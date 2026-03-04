@@ -58,7 +58,7 @@ impl StrategyRegistry {
                 let path = entry.path();
                 if path.extension().and_then(|e| e.to_str()) == Some("toml") {
                     if let Ok(content) = std::fs::read_to_string(&path) {
-                        if let Ok(strat) = toml_strategy::TomlStrategy::from_str(&content) {
+                        if let Ok(strat) = toml_strategy::TomlStrategy::parse(&content) {
                             self.strategies.push(Box::new(strat));
                         }
                     }

@@ -12,6 +12,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **[concise-responses.md](docs/ai-rules/concise-responses.md)** — Be concise and to-the-point. No long descriptions.
 - **[plans-contain-only-plan.md](docs/ai-rules/plans-contain-only-plan.md)** — Plan documents contain only concrete steps. No "TBD" sections.
 - **[visual-and-themes.md](docs/ai-rules/visual-and-themes.md)** — When changing TUI colors, apply to ALL theme presets.
+- **[file-size.md](docs/ai-rules/file-size.md)** — Max 300 lines per file. Split complex domains into subdirectory files. No stubs.
+- **[testing-and-quality.md](docs/ai-rules/testing-and-quality.md)** — Keep tests in sync, run fmt/clippy, maintain line coverage threshold.
 
 ## Project Context
 
@@ -40,22 +42,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Development Commands
 
-**Build & Run:**
-```bash
-cargo build                  # Debug build
-cargo build --release        # Release build
-cargo run                    # Run debug
-cargo run --release          # Run release
-```
+All commands are in the `Makefile`. Run `make help` to list them. Never run raw cargo commands — use `make` targets instead.
 
-**Test & Lint:**
-```bash
-cargo test                   # Run all tests
-cargo test <test_name>       # Run specific test
-cargo test -- --nocapture    # Show println! output
-cargo clippy -- -D warnings  # Must pass before merging
-cargo fmt                    # Format code
-```
+| Target | Description |
+|---|---|
+| `make build` | Debug build |
+| `make build-release` | Release build |
+| `make run` | Run debug |
+| `make run-release` | Run release |
+| `make check` | Type-check (no codegen) |
+| `make fmt` | Format code |
+| `make fmt-check` | Check formatting (CI) |
+| `make lint` | Clippy, deny warnings |
+| `make test` | Run all tests |
+| `make test-v` | Run tests with output |
+| `make test-live` | Run ignored (live) tests |
+| `make coverage` | HTML coverage report |
+| `make ci` | Full CI pipeline locally |
+| `make creds` | Derive Polymarket API credentials |
 
 ## Environment Setup
 

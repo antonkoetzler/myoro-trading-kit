@@ -196,3 +196,9 @@ mod tests {
         assert!(sig.is_none(), "expected no signal when above 0.87 band");
     }
 }
+
+impl Default for Rule120Strategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}

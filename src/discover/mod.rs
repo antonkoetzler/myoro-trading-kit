@@ -1,70 +1,17 @@
-//! Discover Polymarket profiles via Data API leaderboard. Background scan enriches with trade count + category.
+// NOTE: Exceeds 300-line limit — DiscoverState aggregates three domains (leaderboard, screener, trader-stats) with RwLock state; test block adds ~50 lines. See docs/ai-rules/file-size.md
+//! Discover: leaderboard, screener, and per-profile stats.
 
+pub mod leaderboard;
+pub mod screener;
 pub mod trader_stats;
 
-use serde::Deserialize;
+use self::trader_stats::TraderStats;
+pub use leaderboard::{LeaderboardCategory, LeaderboardEntry, OrderBy, TimePeriod};
+pub use screener::ScreenerMarket;
+
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::RwLock;
-
-use self::trader_stats::TraderStats;
-
-const LEADERBOARD: &str = "https://data-api.polymarket.com/v1/leaderboard";
-const PAGE_SIZE: u32 = 50;
-const MAX_OFFSET: u32 = 1000;
-
-#[derive(Clone, Debug)]
-pub struct LeaderboardEntry {
-    pub rank: String,
-    pub proxy_wallet: String,
-    pub user_name: String,
-    pub vol: f64,
-    pub pnl: f64,
-}
-
-#[derive(Debug, Deserialize)]
-struct ApiEntry {
-    rank: Option<String>,
-    #[serde(rename = "proxyWallet")]
-    proxy_wallet: Option<String>,
-    #[serde(rename = "userName")]
-    user_name: Option<String>,
-    vol: Option<f64>,
-    pnl: Option<f64>,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[allow(clippy::upper_case_acronyms)] // Polymarket API expects OVERALL, CRYPTO, etc.
-pub enum LeaderboardCategory {
-    #[default]
-    OVERALL,
-    CRYPTO,
-    SPORTS,
-    POLITICS,
-    CULTURE,
-    WEATHER,
-    ECONOMICS,
-    TECH,
-    FINANCE,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[allow(clippy::upper_case_acronyms)] // API expects DAY, WEEK, etc.
-pub enum TimePeriod {
-    DAY,
-    #[default]
-    WEEK,
-    MONTH,
-    ALL,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[allow(clippy::upper_case_acronyms)] // API expects PNL, VOL
-pub enum OrderBy {
-    #[default]
-    PNL,
-    VOL,
-}
 
 pub struct DiscoverState {
     pub entries: RwLock<Vec<LeaderboardEntry>>,
@@ -74,6 +21,9 @@ pub struct DiscoverState {
     pub stats_cache: RwLock<HashMap<String, TraderStats>>,
     pub scan_index: RwLock<usize>,
     pub fetching: AtomicBool,
+    pub screener_mode: AtomicBool,
+    pub screener_markets: RwLock<Vec<ScreenerMarket>>,
+    pub screener_fetching: AtomicBool,
 }
 
 impl Default for DiscoverState {
@@ -86,6 +36,9 @@ impl Default for DiscoverState {
             stats_cache: RwLock::new(HashMap::new()),
             scan_index: RwLock::new(0),
             fetching: AtomicBool::new(false),
+            screener_mode: AtomicBool::new(false),
+            screener_markets: RwLock::new(Vec::new()),
+            screener_fetching: AtomicBool::new(false),
         }
     }
 }
@@ -118,47 +71,7 @@ impl DiscoverState {
             .ok()
             .map(|o| format!("{:?}", o))
             .unwrap_or_else(|| "PNL".to_string());
-        let client = match reqwest::blocking::Client::builder()
-            .timeout(std::time::Duration::from_secs(15))
-            .build()
-        {
-            Ok(c) => c,
-            Err(_) => return,
-        };
-        let mut all_entries: Vec<LeaderboardEntry> = Vec::new();
-        let mut offset = 0u32;
-        while offset <= MAX_OFFSET {
-            let url = format!(
-                "{}?category={}&timePeriod={}&orderBy={}&limit={}&offset={}",
-                LEADERBOARD, cat, period, order, PAGE_SIZE, offset
-            );
-            let list: Vec<ApiEntry> = match client.get(&url).send().and_then(|r| r.json()) {
-                Ok(l) => l,
-                Err(_) => break,
-            };
-            let len = list.len();
-            if len == 0 {
-                break;
-            }
-            for e in list {
-                let proxy_wallet = match &e.proxy_wallet {
-                    Some(s) if s.starts_with("0x") && s.len() >= 42 => s.clone(),
-                    _ => continue,
-                };
-                all_entries.push(LeaderboardEntry {
-                    rank: e.rank.unwrap_or_else(|| "—".to_string()),
-                    proxy_wallet,
-                    user_name: e.user_name.unwrap_or_else(|| "—".to_string()),
-                    vol: e.vol.unwrap_or(0.0),
-                    pnl: e.pnl.unwrap_or(0.0),
-                });
-            }
-            if len < PAGE_SIZE as usize {
-                break;
-            }
-            offset += PAGE_SIZE;
-            std::thread::sleep(std::time::Duration::from_millis(200));
-        }
+        let all_entries = leaderboard::fetch_leaderboard(&cat, &period, &order);
         if let Ok(mut g) = self.entries.write() {
             *g = all_entries;
         }
@@ -284,7 +197,6 @@ impl DiscoverState {
         }
     }
 
-    /// Index for dialog: 0=ALL, 1=DAY, 2=WEEK, 3=MONTH (ALL at top).
     pub fn time_period_index(&self) -> usize {
         use TimePeriod::*;
         self.time_period
@@ -336,7 +248,6 @@ impl DiscoverState {
         self.stats_cache.read().ok()?.get(address).cloned()
     }
 
-    /// Called by background scanner: pick next leaderboard address, fetch /trades stats, cache. One profile per call.
     pub fn scan_next(&self) {
         let entries = self.get_entries();
         let len = entries.len();
@@ -355,5 +266,92 @@ impl DiscoverState {
                 cache.insert(addr, stats);
             }
         }
+    }
+
+    pub fn is_screener_mode(&self) -> bool {
+        self.screener_mode.load(Ordering::SeqCst)
+    }
+
+    pub fn toggle_screener_mode(&self) {
+        let current = self.screener_mode.load(Ordering::SeqCst);
+        self.screener_mode.store(!current, Ordering::SeqCst);
+    }
+
+    pub fn get_screener_markets(&self) -> Vec<ScreenerMarket> {
+        self.screener_markets
+            .read()
+            .map(|m| m.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn fetch_screener(&self) {
+        if self
+            .screener_fetching
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_err()
+        {
+            return;
+        }
+        let markets = screener::fetch_screener_markets();
+        if let Ok(mut g) = self.screener_markets.write() {
+            *g = markets;
+        }
+        self.screener_fetching.store(false, Ordering::SeqCst);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn discover_state_initializes_defaults() {
+        let state = DiscoverState::new();
+        assert!(!state.is_fetching());
+        assert!(!state.is_screener_mode());
+        assert_eq!(state.get_entries().len(), 0);
+        assert_eq!(state.category_label(), "ALL");
+        assert_eq!(state.time_period_label(), "WEEK");
+        assert_eq!(state.order_by_label(), "P&L");
+    }
+
+    #[test]
+    fn cycle_category_wraps_around() {
+        let state = DiscoverState::new();
+        // Cycle through all 9 categories and back to OVERALL
+        for _ in 0..9 {
+            state.cycle_category();
+        }
+        assert_eq!(state.category_label(), "ALL");
+    }
+
+    #[test]
+    fn set_category_by_index_all_values() {
+        let state = DiscoverState::new();
+        let labels = [
+            "ALL",
+            "CRYPTO",
+            "SPORTS",
+            "POLITICS",
+            "CULTURE",
+            "WEATHER",
+            "ECONOMICS",
+            "TECH",
+            "FINANCE",
+        ];
+        for (i, expected) in labels.iter().enumerate() {
+            state.set_category_by_index(i);
+            assert_eq!(state.category_label(), *expected);
+        }
+    }
+
+    #[test]
+    fn toggle_screener_mode_flips() {
+        let state = DiscoverState::new();
+        assert!(!state.is_screener_mode());
+        state.toggle_screener_mode();
+        assert!(state.is_screener_mode());
+        state.toggle_screener_mode();
+        assert!(!state.is_screener_mode());
     }
 }

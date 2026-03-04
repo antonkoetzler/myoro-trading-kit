@@ -228,3 +228,9 @@ mod tests {
         );
     }
 }
+
+impl Default for InPlay70MinStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}

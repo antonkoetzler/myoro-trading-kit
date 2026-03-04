@@ -114,7 +114,7 @@ pub struct TomlStrategy {
 }
 
 impl TomlStrategy {
-    pub fn from_str(toml_content: &str) -> Result<Self> {
+    pub fn parse(toml_content: &str) -> Result<Self> {
         let file: TomlStrategyFile = toml::from_str(toml_content).context("parse TOML strategy")?;
         Ok(Self {
             id: file.strategy.id,
@@ -165,6 +165,8 @@ impl SportsStrategy for TomlStrategy {
             .filter(|f| f.polymarket.is_some())
             .filter(|f| self.all_conditions_met(f))
             .map(|f| {
+                // Safety: filtered above with `f.polymarket.is_some()`
+                #[allow(clippy::unwrap_used)]
                 let market = f.polymarket.as_ref().unwrap();
                 let edge = (f.home_win_rate - market.yes_price).max(0.0);
                 let kelly = crate::sports::strategies::poisson::kelly_fraction(
@@ -220,7 +222,7 @@ value = 0.75
 
     #[test]
     fn parse_valid_toml() {
-        let strat = TomlStrategy::from_str(VALID_TOML).expect("should parse");
+        let strat = TomlStrategy::parse(VALID_TOML).expect("should parse");
         assert_eq!(strat.id(), "custom_home_edge");
         assert_eq!(strat.name(), "My Home Edge");
         assert!(!strat.enabled());
@@ -229,7 +231,7 @@ value = 0.75
 
     #[test]
     fn condition_evaluation_gt_passes() {
-        let strat = TomlStrategy::from_str(VALID_TOML).unwrap();
+        let strat = TomlStrategy::parse(VALID_TOML).unwrap();
         let cond = &strat.conditions[0]; // home_win_rate > 0.65
 
         use crate::sports::data::Fixture;
@@ -249,7 +251,7 @@ value = 0.75
 
     #[test]
     fn parse_invalid_toml_returns_error() {
-        let result = TomlStrategy::from_str("not valid toml {{{{");
+        let result = TomlStrategy::parse("not valid toml {{{{");
         assert!(result.is_err());
     }
 }

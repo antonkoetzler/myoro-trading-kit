@@ -12,7 +12,7 @@ const PAPER_SPORTS_TRADES: &str = "data/paper_sports_trades.jsonl";
 /// Process a new signal: auto-execute if configured, otherwise queue as Pending.
 pub fn process_signal(feed: &SignalFeed, mut sig: SportsSignal, mode: ExecutionMode) {
     if sig.signal.auto_execute {
-        let executor = Executor::new(mode);
+        let executor = Executor::new(mode, PAPER_SPORTS_TRADES);
         let amount = (sig.signal.kelly_size * 1000.0).max(1.0); // default bankroll $1000
         if executor
             .execute(&sig.signal.market_id, sig.signal.side, amount)
@@ -39,7 +39,7 @@ pub fn execute_at(feed: &SignalFeed, idx: usize, mode: ExecutionMode) -> bool {
     if sig.status != SignalStatus::Pending {
         return false;
     }
-    let executor = Executor::new(mode);
+    let executor = Executor::new(mode, PAPER_SPORTS_TRADES);
     let amount = (sig.signal.kelly_size * 1000.0).max(1.0);
     if executor
         .execute(&sig.signal.market_id, sig.signal.side, amount)

@@ -13,8 +13,12 @@ Follow this doc for all code in this repo. The Cursor rule references it; keep o
 ## Layout
 
 - **Modules:** One main idea per file. `mod.rs` re-exports or orchestrates; avoid huge files.
+- **Max file size: 300 lines** (500 with a comment justifying the exception). Files exceeding 300 lines must be split into per-concern sub-files. This is a hard limit for AI-generated code.
+- **No single-file modules for complex domains** — always use a subdirectory with per-concern files (e.g. `tui/views/`, `live/`, `strategies/crypto/`).
+- **No stub files** — if a file has no logic, it should not exist. Stubs are tech debt.
 - **Naming:** `snake_case` for items; `PascalCase` for types. Names reflect purpose (e.g. `parse_execution_mode`, `Executor`, `PmClient`).
 - **Paths:** Domain data and backtest live under `src/strategies/<domain>/data/` and `.../backtest/`. Shared code in `src/shared/`.
+- **VSCode tasks required** — every runnable/lintable command must have a `.vscode/tasks.json` entry.
 
 ## Feature-based folder structure
 
@@ -46,7 +50,7 @@ Organize code and documentation by **feature** or **domain**, not by file type. 
 
 ## Async and concurrency
 
-- Prefer `tokio`; use `async` only where I/O or timers are needed.
+- **Tokio async throughout** — all I/O must be async. Use `std::thread` only as a bridge for blocking I/O (e.g. `tokio::task::spawn_blocking`), not for orchestration.
 - Prefer structured concurrency (tasks, channels) over raw threads. Share state via `Arc`/`RwLock` or message passing.
 
 ## Testing

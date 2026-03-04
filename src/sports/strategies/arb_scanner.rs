@@ -203,3 +203,9 @@ mod tests {
         assert!(sig.is_none());
     }
 }
+
+impl Default for ArbScannerStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}

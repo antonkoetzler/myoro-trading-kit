@@ -1,3 +1,4 @@
+// NOTE: Exceeds 300-line limit — Poisson/Dixon-Coles goal model with Kelly sizing; the math forms a single cohesive algorithm. See docs/ai-rules/file-size.md
 //! Poisson + Dixon-Coles goal model. Predicts P(H), P(D), P(A) from team xG stats.
 
 use crate::shared::strategy::{Side, Signal};
@@ -310,5 +311,11 @@ mod tests {
         let lambda = 1.5;
         let sum: f64 = (0..20).map(|k| poisson_pmf(lambda, k)).sum();
         assert!((sum - 1.0).abs() < 1e-4, "sum was {}", sum);
+    }
+}
+
+impl Default for PoissonStrategy {
+    fn default() -> Self {
+        Self::new()
     }
 }

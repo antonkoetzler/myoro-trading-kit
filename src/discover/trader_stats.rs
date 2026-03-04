@@ -58,6 +58,59 @@ fn infer_category(slug: &str, event_slug: &str) -> &'static str {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn infer_category_crypto_keywords() {
+        assert_eq!(infer_category("bitcoin-price-100k", ""), "Crypto");
+        assert_eq!(infer_category("btc-above", ""), "Crypto");
+        assert_eq!(infer_category("eth-merge", ""), "Crypto");
+        assert_eq!(infer_category("crypto-adoption", ""), "Crypto");
+    }
+
+    #[test]
+    fn infer_category_politics_keywords() {
+        assert_eq!(infer_category("trump-wins", ""), "Politics");
+        assert_eq!(infer_category("election-2024", ""), "Politics");
+        assert_eq!(infer_category("biden-approval", ""), "Politics");
+    }
+
+    #[test]
+    fn infer_category_sports_keywords() {
+        assert_eq!(infer_category("nfl-super-bowl", ""), "Sports");
+        assert_eq!(infer_category("nba-finals", ""), "Sports");
+        assert_eq!(infer_category("game-7", ""), "Sports");
+    }
+
+    #[test]
+    fn infer_category_weather_keywords() {
+        assert_eq!(infer_category("rain-forecast", ""), "Weather");
+        assert_eq!(infer_category("temperature-above", ""), "Weather");
+    }
+
+    #[test]
+    fn infer_category_economics_keywords() {
+        // "fed" matches Economics; avoid "inflation" which contains "nfl" (Sports)
+        assert_eq!(infer_category("fed-funds-rate", ""), "Economics");
+        assert_eq!(infer_category("gdp-growth-q4", ""), "Economics");
+        assert_eq!(infer_category("econom-outlook", ""), "Economics");
+    }
+
+    #[test]
+    fn infer_category_other_for_unknown() {
+        // Avoid "something" (contains "eth"→Crypto) and slugs with any keyword substrings
+        assert_eq!(infer_category("art-auction", "celebrity-awards"), "Other");
+    }
+
+    #[test]
+    fn infer_category_uses_event_slug_too() {
+        // If slug is empty but event_slug contains keyword, still matches
+        assert_eq!(infer_category("", "btc-above-100k"), "Crypto");
+    }
+}
+
 pub fn fetch_stats(address: &str) -> Option<TraderStats> {
     let client = reqwest::blocking::Client::builder()
         .timeout(std::time::Duration::from_secs(20))

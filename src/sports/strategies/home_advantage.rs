@@ -160,3 +160,9 @@ mod tests {
         assert!(sig.is_none());
     }
 }
+
+impl Default for HomeAdvantageStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
