@@ -152,6 +152,9 @@ mod tests {
             mm_max_inventory_usd: 200.0,
             mm_max_markets: 5,
             mm_min_volume_usd: 1000.0,
+            binance_lag_assets: vec!["BTCUSDT".to_string()],
+            weather_cities: vec![],
+            balldontlie_key: String::new(),
         }
     }
 

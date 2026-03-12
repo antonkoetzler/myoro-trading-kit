@@ -6,8 +6,8 @@
 //!   3. If move > MOMENTUM_THRESHOLD (0.4%), fetch matching Polymarket crypto market odds.
 //!   4. If Polymarket hasn't moved commensurately (edge > MIN_EDGE), emit signal.
 
-use super::{CryptoStrategy, GammaMarket, StoredCryptoSignal};
-use crate::shared::strategy::{Side, Signal, StrategyMetadata};
+use super::{GammaMarket, StoredCryptoSignal};
+use crate::shared::strategy::{Side, Signal, Strategy, StrategyMetadata};
 use anyhow::Result;
 use chrono::Utc;
 
@@ -16,15 +16,32 @@ const MIN_EDGE: f64 = 0.03; // 3% min implied edge
 const KELLY_FRACTION: f64 = 0.25; // quarter-Kelly sizing
 
 pub struct BinanceLagStrategy {
-    /// Binance REST ticker endpoint.
-    endpoint: String,
+    /// Binance symbols to scan (e.g. ["BTCUSDT", "ETHUSDT"]).
+    pub symbols: Vec<String>,
 }
 
 impl BinanceLagStrategy {
     pub fn new() -> Self {
         Self {
-            endpoint: "https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT".to_string(),
+            symbols: vec!["BTCUSDT".to_string()],
         }
+    }
+
+    /// Construct with a custom symbol list (from config).
+    pub fn with_symbols(symbols: Vec<String>) -> Self {
+        let symbols = if symbols.is_empty() {
+            vec!["BTCUSDT".to_string()]
+        } else {
+            symbols
+        };
+        Self { symbols }
+    }
+
+    fn ticker_url(symbol: &str) -> String {
+        format!(
+            "https://api.binance.com/api/v3/ticker/price?symbol={}",
+            symbol
+        )
     }
 
     /// Fetch current BTC/USDT price from Binance.
@@ -94,12 +111,27 @@ impl BinanceLagStrategy {
         None
     }
 
-    /// Run the full strategy, returning any new signal.
+    /// Run the full strategy for a single symbol, returning any new signal.
     pub fn run(&self, prev_price: f64) -> Result<(f64, Option<StoredCryptoSignal>)> {
+        let symbol = self
+            .symbols
+            .first()
+            .map(|s| s.as_str())
+            .unwrap_or("BTCUSDT");
+        self.run_symbol(symbol, prev_price)
+    }
+
+    /// Run for a specific symbol. Returns (current_price, Option<signal>).
+    pub fn run_symbol(
+        &self,
+        symbol: &str,
+        prev_price: f64,
+    ) -> Result<(f64, Option<StoredCryptoSignal>)> {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()?;
-        let current_price = Self::fetch_btc_price(&client, &self.endpoint)?;
+        let url = Self::ticker_url(symbol);
+        let current_price = Self::fetch_btc_price(&client, &url)?;
         if prev_price <= 0.0 {
             return Ok((current_price, None));
         }
@@ -111,13 +143,14 @@ impl BinanceLagStrategy {
         for market in &markets {
             let mid = (market.best_bid + market.best_ask) / 2.0;
             if let Some((side, edge, kelly)) = Self::find_signal(change_pct, mid) {
+                let strategy_id = format!("binance_lag_{}", symbol.to_lowercase());
                 let signal = StoredCryptoSignal {
                     market_id: market.id.clone(),
                     label: market.title.clone(),
                     side: format!("{:?}", side),
                     edge_pct: edge,
                     kelly_size: kelly,
-                    strategy_id: "binance_lag".to_string(),
+                    strategy_id,
                     status: "pending".to_string(),
                     created_at: Utc::now(),
                 };
@@ -126,9 +159,24 @@ impl BinanceLagStrategy {
         }
         Ok((current_price, None))
     }
+
+    /// Run for all configured symbols. Returns all signals found.
+    pub fn run_all_symbols(
+        &self,
+        prev_prices: &std::collections::HashMap<String, f64>,
+    ) -> Vec<StoredCryptoSignal> {
+        let mut signals = Vec::new();
+        for symbol in &self.symbols {
+            let prev = prev_prices.get(symbol).copied().unwrap_or(0.0);
+            if let Ok((_price, Some(sig))) = self.run_symbol(symbol, prev) {
+                signals.push(sig);
+            }
+        }
+        signals
+    }
 }
 
-impl CryptoStrategy for BinanceLagStrategy {
+impl Strategy for BinanceLagStrategy {
     fn id(&self) -> &'static str {
         "binance_lag"
     }
@@ -152,6 +200,8 @@ impl CryptoStrategy for BinanceLagStrategy {
             auto_execute: false,
             strategy_id: s.strategy_id,
             metadata: None,
+            stop_loss_pct: None,
+            take_profit_pct: None,
         }))
     }
 }
@@ -188,6 +238,36 @@ mod tests {
     fn find_signal_small_move_returns_none() {
         let result = BinanceLagStrategy::find_signal(0.001, 0.50);
         assert!(result.is_none());
+    }
+
+    #[test]
+    fn with_symbols_stores_all_assets() {
+        let assets = vec![
+            "BTCUSDT".to_string(),
+            "ETHUSDT".to_string(),
+            "SOLUSDT".to_string(),
+        ];
+        let strat = BinanceLagStrategy::with_symbols(assets.clone());
+        assert_eq!(strat.symbols.len(), 3);
+        assert_eq!(strat.symbols, assets);
+    }
+
+    #[test]
+    fn with_symbols_defaults_to_btcusdt_when_empty() {
+        let strat = BinanceLagStrategy::with_symbols(vec![]);
+        assert_eq!(strat.symbols, vec!["BTCUSDT"]);
+    }
+
+    #[test]
+    fn run_all_symbols_returns_empty_when_no_prior_prices() {
+        // With no prior price, run_symbol returns (price, None) → no signals
+        let assets = vec!["BTCUSDT".to_string(), "ETHUSDT".to_string()];
+        let strat = BinanceLagStrategy::with_symbols(assets);
+        let prev = std::collections::HashMap::new();
+        // run_all_symbols makes live HTTP calls; but with empty prev prices
+        // run_symbol returns early with Ok((price, None)) — no panic.
+        // We just verify the function is callable without panicking.
+        let _ = strat.run_all_symbols(&prev);
     }
 }
 

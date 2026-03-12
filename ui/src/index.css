@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root,
+  [data-theme="dark"] {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 92%;
+    --card: 222 47% 9%;
+    --card-foreground: 210 40% 92%;
+    --popover: 222 47% 9%;
+    --popover-foreground: 210 40% 92%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 6%;
+    --secondary: 217 32% 17%;
+    --secondary-foreground: 210 40% 92%;
+    --muted: 217 32% 14%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 142 76% 45%;
+    --accent-foreground: 222 47% 6%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 32% 17%;
+    --input: 217 32% 17%;
+    --ring: 217 91% 60%;
+    --radius: 0.5rem;
+    --success: 142 76% 45%;
+    --win: 142 76% 45%;
+    --loss: 0 72% 51%;
+  }
+
+  [data-theme="light"] {
+    --background: 0 0% 98%;
+    --foreground: 222 47% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 10%;
+    --primary: 217 91% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 217 32% 90%;
+    --secondary-foreground: 222 47% 10%;
+    --muted: 217 32% 93%;
+    --muted-foreground: 215 20% 40%;
+    --accent: 142 76% 35%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 217 32% 87%;
+    --input: 217 32% 87%;
+    --ring: 217 91% 50%;
+    --radius: 0.5rem;
+    --success: 142 76% 35%;
+    --win: 142 76% 35%;
+    --loss: 0 72% 45%;
+  }
+
+  [data-theme="high-contrast"] {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 5%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 5%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 60 100% 60%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 15%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 70%;
+    --accent: 120 100% 50%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 100% 60%;
+    --destructive-foreground: 0 0% 0%;
+    --border: 0 0% 30%;
+    --input: 0 0% 15%;
+    --ring: 60 100% 60%;
+    --radius: 0.5rem;
+    --success: 120 100% 50%;
+    --win: 120 100% 50%;
+    --loss: 0 100% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}

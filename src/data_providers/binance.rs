@@ -42,7 +42,7 @@ impl HistoricalDataProvider for BinanceProvider {
     }
 
     fn name(&self) -> &str {
-        "Binance Klines"
+        "Price History · Binance"
     }
 
     fn domain(&self) -> Domain {

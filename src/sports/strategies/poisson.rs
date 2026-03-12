@@ -98,6 +98,8 @@ impl PoissonStrategy {
                         "p_home": p_home,
                         "market_yes": market.yes_price,
                     })),
+                    stop_loss_pct: None,
+                    take_profit_pct: None,
                 },
                 f.clone(),
             ));
@@ -122,6 +124,8 @@ impl PoissonStrategy {
                         "p_away": p_away,
                         "market_no": market.no_price,
                     })),
+                    stop_loss_pct: None,
+                    take_profit_pct: None,
                 },
                 f.clone(),
             ));

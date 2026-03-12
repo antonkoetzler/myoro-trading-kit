@@ -26,6 +26,42 @@ pub(super) fn default_mm_max_markets() -> u32 {
 pub(super) fn default_mm_min_volume() -> f64 {
     1000.0
 }
+pub(super) fn default_binance_lag_assets() -> Vec<String> {
+    vec!["BTCUSDT".to_string()]
+}
+
+/// A city entry for the weather strategy.
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct WeatherCity {
+    pub name: String,
+    pub lat: f64,
+    pub lon: f64,
+    /// Keywords to match against Polymarket market titles.
+    pub polymarket_keyword: String,
+}
+
+pub(super) fn default_weather_cities() -> Vec<WeatherCity> {
+    vec![
+        WeatherCity {
+            name: "New York".to_string(),
+            lat: 40.7,
+            lon: -74.0,
+            polymarket_keyword: "new york".to_string(),
+        },
+        WeatherCity {
+            name: "London".to_string(),
+            lat: 51.5,
+            lon: -0.1,
+            polymarket_keyword: "london".to_string(),
+        },
+        WeatherCity {
+            name: "Seoul".to_string(),
+            lat: 37.6,
+            lon: 127.0,
+            polymarket_keyword: "seoul".to_string(),
+        },
+    ]
+}
 
 // ── Enums ──────────────────────────────────────────────────────────────────
 
@@ -89,6 +125,10 @@ pub struct JsonConfigFile {
     pub mm_max_inventory_usd: Option<f64>,
     pub mm_max_markets: Option<u32>,
     pub mm_min_volume_usd: Option<f64>,
+    #[serde(default)]
+    pub binance_lag_assets: Vec<String>,
+    #[serde(default)]
+    pub weather_cities: Vec<WeatherCity>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -125,6 +165,17 @@ pub struct Config {
     pub max_position_usd: f64,
     #[serde(default = "default_max_open_positions")]
     pub max_open_positions: u32,
+    // ── Strategy parameters ───────────────────────────────────────────────
+    /// Binance symbols to monitor for lag strategy. Defaults to ["BTCUSDT"].
+    #[serde(default = "default_binance_lag_assets")]
+    pub binance_lag_assets: Vec<String>,
+    /// Cities to monitor for weather strategies.
+    #[serde(default = "default_weather_cities")]
+    pub weather_cities: Vec<WeatherCity>,
+    // ── API Keys ──────────────────────────────────────────────────────────
+    /// BallDontLie API key — free tier, register at balldontlie.io
+    #[serde(default)]
+    pub balldontlie_key: String,
     // ── Market Making ─────────────────────────────────────────────────────
     #[serde(default)]
     pub mm_enabled: bool,
@@ -205,5 +256,38 @@ mod tests {
         assert!(!cfg.copy_auto_execute);
         assert_eq!(cfg.paper_trades_file, "");
         assert!(cfg.copy_trader_bankrolls.is_empty());
+    }
+
+    #[test]
+    fn default_binance_lag_assets_contains_btcusdt() {
+        let assets = default_binance_lag_assets();
+        assert!(!assets.is_empty());
+        assert!(assets.contains(&"BTCUSDT".to_string()));
+    }
+
+    #[test]
+    fn default_weather_cities_has_three_entries() {
+        let cities = default_weather_cities();
+        assert_eq!(cities.len(), 3);
+        let names: Vec<&str> = cities.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"New York"));
+        assert!(names.contains(&"London"));
+        assert!(names.contains(&"Seoul"));
+    }
+
+    #[test]
+    fn config_binance_lag_assets_deserializes_from_json() {
+        let json = r#"{"binance_lag_assets": ["BTCUSDT", "ETHUSDT", "SOLUSDT"]}"#;
+        let file: JsonConfigFile = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(file.binance_lag_assets.len(), 3);
+        assert!(file.binance_lag_assets.contains(&"ETHUSDT".to_string()));
+    }
+
+    #[test]
+    fn config_weather_cities_deserializes_from_json() {
+        let json = r#"{"weather_cities": [{"name": "Tokyo", "lat": 35.7, "lon": 139.7, "polymarket_keyword": "tokyo"}]}"#;
+        let file: JsonConfigFile = serde_json::from_str(json).expect("deserialize");
+        assert_eq!(file.weather_cities.len(), 1);
+        assert_eq!(file.weather_cities[0].name, "Tokyo");
     }
 }

@@ -6,8 +6,8 @@
 //!   If P("BTC > $90K") < P("BTC > $100K"), that is impossible → arb exists.
 //!   Emit a signal to buy the underpriced market.
 
-use super::{CryptoStrategy, GammaMarket, StoredCryptoSignal};
-use crate::shared::strategy::{Side, Signal, StrategyMetadata};
+use super::{GammaMarket, StoredCryptoSignal};
+use crate::shared::strategy::{Side, Signal, Strategy, StrategyMetadata};
 use anyhow::Result;
 use chrono::Utc;
 
@@ -128,7 +128,7 @@ impl LogicalArbStrategy {
     }
 }
 
-impl CryptoStrategy for LogicalArbStrategy {
+impl Strategy for LogicalArbStrategy {
     fn id(&self) -> &'static str {
         "logical_arb"
     }
@@ -151,6 +151,8 @@ impl CryptoStrategy for LogicalArbStrategy {
             auto_execute: false,
             strategy_id: s.strategy_id,
             metadata: None,
+            stop_loss_pct: None,
+            take_profit_pct: None,
         }))
     }
 }

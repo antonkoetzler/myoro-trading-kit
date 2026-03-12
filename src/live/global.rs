@@ -18,6 +18,10 @@ pub struct GlobalStats {
     pub pnl: f64,
     pub open_trades: u32,
     pub closed_trades: u32,
+    /// Cumulative realized loss for the current calendar day (USD).
+    pub daily_loss_usd: f64,
+    /// When true, all strategy signal generation is suppressed until reset.
+    pub circuit_breaker_active: bool,
 }
 
 impl Default for GlobalStats {
@@ -27,6 +31,8 @@ impl Default for GlobalStats {
             pnl: 0.0,
             open_trades: 0,
             closed_trades: 0,
+            daily_loss_usd: 0.0,
+            circuit_breaker_active: false,
         }
     }
 }

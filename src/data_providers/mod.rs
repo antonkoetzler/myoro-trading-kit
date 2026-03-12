@@ -2,6 +2,7 @@
 //!
 //! Each provider implements `HistoricalDataProvider` and returns `TimeSeries` data.
 //! The SQLite cache stores fetched data locally with tiered invalidation.
+pub mod balldontlie;
 pub mod binance;
 pub mod cache;
 pub mod espn;
@@ -88,6 +89,7 @@ pub fn all_providers() -> Vec<Box<dyn HistoricalDataProvider>> {
         Box::new(polymarket::PolymarketProvider::new()),
         Box::new(binance::BinanceProvider::new()),
         Box::new(espn::EspnProvider::new()),
+        Box::new(balldontlie::BallDontLieProvider::new()),
         Box::new(weather::OpenMeteoProvider::new()),
         Box::new(import::ImportProvider::new()),
     ]
@@ -129,6 +131,6 @@ mod tests {
     #[test]
     fn all_providers_list() {
         let providers = all_providers();
-        assert!(providers.len() >= 5);
+        assert!(providers.len() >= 6);
     }
 }

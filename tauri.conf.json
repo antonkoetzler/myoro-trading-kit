@@ -1,0 +1,25 @@
+{
+  "productName": "Myoro Trading Kit",
+  "version": "0.1.0",
+  "identifier": "com.myoro.trading-kit",
+  "build": {
+    "frontendDist": "../ui/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "cd ui && npm run dev",
+    "beforeBuildCommand": "cd ui && npm run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Myoro Trading Kit",
+        "width": 1440,
+        "height": 900,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}

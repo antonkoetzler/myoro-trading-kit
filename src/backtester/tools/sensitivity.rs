@@ -33,7 +33,8 @@ pub fn analyze(trades: &[Trade], params: &[ToolParam]) -> ToolResult {
     let mut best_sharpe = f64::NEG_INFINITY;
     let mut best_params = String::new();
     let mut worst_sharpe = f64::INFINITY;
-    let mut grid_sharpes = Vec::new();
+    // grid_sharpes[wr_step * grid + sz_step]
+    let mut grid_sharpes: Vec<f64> = Vec::with_capacity(grid * grid);
 
     for wr_step in 0..grid {
         let wr_offset = -wr_sweep + 2.0 * wr_sweep * wr_step as f64 / (grid - 1).max(1) as f64;
@@ -91,6 +92,33 @@ pub fn analyze(trades: &[Trade], params: &[ToolParam]) -> ToolResult {
         }
     ));
 
+    // ASCII heatmap: rows = WinRate sweep, cols = Size sweep
+    // Block chars encode Sharpe quartile: ░▒▓█ (low → high)
+    detail.push(String::new());
+    detail.push("Heatmap — WinRate(row)×Size(col): ░low ▒med ▓high █peak".to_string());
+    let sh_min = grid_sharpes.iter().cloned().fold(f64::INFINITY, f64::min);
+    let sh_max = grid_sharpes
+        .iter()
+        .cloned()
+        .fold(f64::NEG_INFINITY, f64::max);
+    let sh_range = (sh_max - sh_min).max(0.001);
+    const BLOCKS: [char; 4] = ['░', '▒', '▓', '█'];
+    for wr_step in 0..grid {
+        let wr_offset = -wr_sweep + 2.0 * wr_sweep * wr_step as f64 / (grid - 1).max(1) as f64;
+        let adj_wr = (base_wr + wr_offset).clamp(0.05, 0.95);
+        let row_str: String = (0..grid)
+            .map(|sz_step| {
+                let v = grid_sharpes
+                    .get(wr_step * grid + sz_step)
+                    .copied()
+                    .unwrap_or(sh_min);
+                let idx = ((v - sh_min) / sh_range * 3.0).round() as usize;
+                BLOCKS[idx.min(3)]
+            })
+            .collect();
+        detail.push(format!(" WR{:.2} {}", adj_wr, row_str));
+    }
+
     // Build histogram of grid sharpes
     let histogram = build_sharpe_hist(&grid_sharpes, 10);
 
@@ -113,6 +141,71 @@ pub fn analyze(trades: &[Trade], params: &[ToolParam]) -> ToolResult {
         histogram,
         detail_lines: detail,
         ..Default::default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::backtester::data::Trade;
+    use crate::shared::strategy::Side;
+
+    fn make_trades(n: usize) -> Vec<Trade> {
+        (0..n)
+            .map(|i| Trade {
+                timestamp: 0,
+                side: Side::Yes,
+                entry_price: 0.45,
+                exit_price: 0.55,
+                size: 10.0,
+                pnl: if i % 2 == 0 { 5.0 } else { -3.0 },
+                strategy_id: "test".to_string(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn sensitivity_heatmap_in_detail_lines() {
+        let trades = make_trades(20);
+        let params = default_params();
+        let result = analyze(&trades, &params);
+        let heatmap_line = result.detail_lines.iter().find(|l| l.contains("Heatmap"));
+        assert!(
+            heatmap_line.is_some(),
+            "detail_lines should contain Heatmap header"
+        );
+    }
+
+    #[test]
+    fn sensitivity_heatmap_uses_block_chars() {
+        let trades = make_trades(20);
+        let params = default_params();
+        let result = analyze(&trades, &params);
+        const BLOCKS: [char; 4] = ['░', '▒', '▓', '█'];
+        let heatmap_rows: Vec<&String> = result
+            .detail_lines
+            .iter()
+            .filter(|l| l.trim_start().starts_with("WR"))
+            .collect();
+        assert!(
+            !heatmap_rows.is_empty(),
+            "should have WR rows in detail_lines"
+        );
+        for row in &heatmap_rows {
+            for ch in row.chars() {
+                if BLOCKS.contains(&ch) {
+                    return; // found at least one block char
+                }
+            }
+        }
+        panic!("No block chars found in heatmap rows");
+    }
+
+    #[test]
+    fn sensitivity_returns_error_for_few_trades() {
+        let result = analyze(&[], &default_params());
+        let has_error = result.summary.iter().any(|(k, _)| k == "Error");
+        assert!(has_error);
     }
 }
 

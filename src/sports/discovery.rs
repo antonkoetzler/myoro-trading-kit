@@ -3,7 +3,7 @@
 use crate::sports::data::Fixture;
 use anyhow::{Context, Result};
 
-const USER_AGENT: &str = "Mozilla/5.0 (compatible; polymarket-terminal/1.0)";
+const USER_AGENT: &str = "Mozilla/5.0 (compatible; trading-kit/1.0)";
 const GAMMA_EVENTS: &str = "https://gamma-api.polymarket.com/events?closed=false&limit=100";
 
 /// A matched Polymarket market for a given fixture.

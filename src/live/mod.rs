@@ -54,9 +54,20 @@ impl Default for LiveState {
 
 impl LiveState {
     pub fn fetch_all(&self) {
-        crypto::fetch_crypto(&self.crypto, &self.crypto_logs);
+        let default_assets = vec!["BTCUSDT".to_string()];
+        crypto::fetch_crypto(&self.crypto, &self.crypto_logs, &default_assets);
         sports::fetch_sports(&self.sports, &self.sports_logs);
-        weather::fetch_weather(&self.weather, &self.weather_logs);
+        weather::fetch_weather(&self.weather, &self.weather_logs, &[]);
+        if let Ok(mut p) = self.portfolio.write() {
+            p.refresh();
+        }
+    }
+
+    /// Like `fetch_all` but uses config-driven parameters (multi-asset Binance, custom cities).
+    pub fn fetch_all_with_config(&self, config: &Config) {
+        crypto::fetch_crypto(&self.crypto, &self.crypto_logs, &config.binance_lag_assets);
+        sports::fetch_sports(&self.sports, &self.sports_logs);
+        weather::fetch_weather(&self.weather, &self.weather_logs, &config.weather_cities);
         if let Ok(mut p) = self.portfolio.write() {
             p.refresh();
         }
@@ -122,6 +133,49 @@ impl LiveState {
     pub fn set_bankroll(&self, v: Option<f64>) {
         if let Ok(mut s) = self.global_stats.write() {
             s.bankroll = v;
+        }
+    }
+
+    /// Returns true if the circuit breaker is active (daily loss limit hit).
+    pub fn circuit_breaker_active(&self) -> bool {
+        self.global_stats
+            .read()
+            .map(|s| s.circuit_breaker_active)
+            .unwrap_or(false)
+    }
+
+    /// Trip the circuit breaker (called when daily loss limit is reached).
+    pub fn trip_circuit_breaker(&self) {
+        if let Ok(mut s) = self.global_stats.write() {
+            s.circuit_breaker_active = true;
+        }
+        push_log_to(
+            &self.crypto_logs,
+            LogLevel::Error,
+            "CIRCUIT BREAKER: daily loss limit reached — all trading suspended".into(),
+        );
+    }
+
+    /// Reset the circuit breaker (manual reset via `R` key).
+    pub fn reset_circuit_breaker(&self) {
+        if let Ok(mut s) = self.global_stats.write() {
+            s.circuit_breaker_active = false;
+            s.daily_loss_usd = 0.0;
+        }
+        push_log_to(
+            &self.crypto_logs,
+            LogLevel::Success,
+            "Circuit breaker reset — trading resumed".into(),
+        );
+    }
+
+    /// Record a loss amount. Trips circuit breaker if limit is exceeded.
+    pub fn record_loss(&self, loss_usd: f64, max_daily_loss_usd: f64) {
+        if let Ok(mut s) = self.global_stats.write() {
+            s.daily_loss_usd += loss_usd;
+            if s.daily_loss_usd >= max_daily_loss_usd && !s.circuit_breaker_active {
+                s.circuit_breaker_active = true;
+            }
         }
     }
 }
@@ -206,5 +260,24 @@ mod tests {
         });
         t1.join().unwrap();
         t2.join().unwrap();
+    }
+
+    #[test]
+    fn circuit_breaker_trips_when_loss_exceeds_limit() {
+        let state = LiveState::default();
+        assert!(!state.circuit_breaker_active());
+        state.record_loss(50.0, 100.0);
+        assert!(!state.circuit_breaker_active()); // not yet
+        state.record_loss(60.0, 100.0); // total = 110 > 100
+        assert!(state.circuit_breaker_active());
+    }
+
+    #[test]
+    fn circuit_breaker_resets_after_manual_reset() {
+        let state = LiveState::default();
+        state.trip_circuit_breaker();
+        assert!(state.circuit_breaker_active());
+        state.reset_circuit_breaker();
+        assert!(!state.circuit_breaker_active());
     }
 }

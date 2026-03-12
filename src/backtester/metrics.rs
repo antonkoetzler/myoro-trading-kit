@@ -21,9 +21,29 @@ pub struct PerformanceMetrics {
     pub brier_score: Option<f64>,
     pub avg_win: f64,
     pub avg_loss: f64,
+    /// Cumulative equity curve (cumulative PnL per trade).
+    pub equity_curve: Vec<f64>,
 }
 
 impl PerformanceMetrics {
+    /// Return key metrics as a flat vector matching the GUI results panel order.
+    pub fn to_vec(&self) -> Vec<f64> {
+        vec![
+            self.trade_count as f64,
+            self.total_return,
+            self.sharpe,
+            self.sortino,
+            self.max_dd_pct,
+            self.win_rate,
+            self.profit_factor,
+            self.expectancy,
+            self.calmar,
+            self.var_95,
+            self.recovery_factor,
+            self.brier_score.unwrap_or(0.0),
+        ]
+    }
+
     /// Compute all metrics from a trade sequence.
     pub fn compute(trades: &[Trade]) -> Self {
         if trades.is_empty() {
@@ -33,6 +53,14 @@ impl PerformanceMetrics {
         let n = trades.len();
         let pnls: Vec<f64> = trades.iter().map(|t| t.pnl).collect();
         let total_return: f64 = pnls.iter().sum();
+        // Equity curve: cumulative sum of PnL
+        let equity_curve: Vec<f64> = pnls
+            .iter()
+            .scan(0.0, |acc, &p| {
+                *acc += p;
+                Some(*acc)
+            })
+            .collect();
 
         // Win / loss splits
         let wins: Vec<f64> = pnls.iter().copied().filter(|&p| p > 0.0).collect();
@@ -136,6 +164,7 @@ impl PerformanceMetrics {
             brier_score: brier,
             avg_win,
             avg_loss,
+            equity_curve,
         }
     }
 }
@@ -181,6 +210,42 @@ fn compute_brier(trades: &[Trade]) -> Option<f64> {
         })
         .sum();
     Some(sum / resolved.len() as f64)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_trades(pnls: &[f64]) -> Vec<Trade> {
+        use crate::shared::strategy::Side;
+        pnls.iter()
+            .map(|&p| Trade {
+                timestamp: 0,
+                side: Side::Yes,
+                size: 1.0,
+                entry_price: 0.5,
+                exit_price: 0.5 + p,
+                pnl: p,
+                strategy_id: "test".into(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn equity_curve_is_cumulative_sum() {
+        let trades = make_trades(&[1.0, -0.5, 2.0]);
+        let m = PerformanceMetrics::compute(&trades);
+        assert_eq!(m.equity_curve.len(), 3);
+        assert!((m.equity_curve[0] - 1.0).abs() < 1e-9);
+        assert!((m.equity_curve[1] - 0.5).abs() < 1e-9);
+        assert!((m.equity_curve[2] - 2.5).abs() < 1e-9);
+    }
+
+    #[test]
+    fn equity_curve_empty_for_no_trades() {
+        let m = PerformanceMetrics::compute(&[]);
+        assert!(m.equity_curve.is_empty());
+    }
 }
 
 /// Compute drawdown series (underwater equity).

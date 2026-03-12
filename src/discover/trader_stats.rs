@@ -10,6 +10,8 @@ const TRADES_LIMIT: u32 = 500;
 pub struct TraderStats {
     pub trade_count: u32,
     pub top_category: String,
+    /// Approximate win rate (0.0–1.0): fraction of BUY trades with final price ≥ 0.5.
+    pub win_rate: Option<f64>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,6 +120,8 @@ pub fn fetch_stats(address: &str) -> Option<TraderStats> {
         .ok()?;
     let mut trade_count: u32 = 0;
     let mut category_counts: HashMap<String, u32> = HashMap::new();
+    let mut buy_wins: u32 = 0;
+    let mut buy_total: u32 = 0;
     let mut offset = 0u32;
     loop {
         let url = format!(
@@ -134,6 +138,17 @@ pub fn fetch_stats(address: &str) -> Option<TraderStats> {
             let es = t.slug.as_deref().unwrap_or("");
             let cat = infer_category(es, &slug);
             *category_counts.entry(cat.to_string()).or_insert(0) += 1;
+            // Approximate win rate: BUY trades where final price ≥ 0.5
+            if t.side
+                .as_deref()
+                .map(|s| s.eq_ignore_ascii_case("buy"))
+                .unwrap_or(false)
+            {
+                buy_total += 1;
+                if t.price.unwrap_or(0.0) >= 0.5 {
+                    buy_wins += 1;
+                }
+            }
         }
         if list.len() < 100 {
             break;
@@ -149,8 +164,14 @@ pub fn fetch_stats(address: &str) -> Option<TraderStats> {
         .max_by_key(|(_, c)| *c)
         .map(|(k, _)| k)
         .unwrap_or_else(|| "—".to_string());
+    let win_rate = if buy_total > 0 {
+        Some(buy_wins as f64 / buy_total as f64)
+    } else {
+        None
+    };
     Some(TraderStats {
         trade_count,
         top_category,
+        win_rate,
     })
 }

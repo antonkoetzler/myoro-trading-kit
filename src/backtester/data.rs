@@ -184,7 +184,18 @@ pub fn load_paper_trades(path: &str, strategy_filter: &str) -> Vec<Trade> {
 
 /// Generate synthetic trades for testing.
 pub fn generate_synthetic(n: usize, win_rate: f64, avg_win: f64, avg_loss: f64) -> Vec<Trade> {
-    let mut rng = SmallRng::seed_from_u64(42);
+    generate_synthetic_seeded(n, win_rate, avg_win, avg_loss, 42)
+}
+
+/// Generate synthetic trades with an explicit RNG seed.
+pub fn generate_synthetic_seeded(
+    n: usize,
+    win_rate: f64,
+    avg_win: f64,
+    avg_loss: f64,
+    seed: u64,
+) -> Vec<Trade> {
+    let mut rng = SmallRng::seed_from_u64(seed);
     (0..n)
         .map(|i| {
             let win = rng.gen::<f64>() < win_rate;

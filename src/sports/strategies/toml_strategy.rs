@@ -187,6 +187,8 @@ impl SportsStrategy for TomlStrategy {
                             "away": f.fixture.away,
                             "strategy": self.name,
                         })),
+                        stop_loss_pct: None,
+                        take_profit_pct: None,
                     },
                     f.clone(),
                 )

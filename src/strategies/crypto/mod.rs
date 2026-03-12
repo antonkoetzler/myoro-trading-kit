@@ -8,17 +8,6 @@ pub mod logical_arb;
 pub use binance_lag::BinanceLagStrategy;
 pub use logical_arb::LogicalArbStrategy;
 
-use crate::shared::strategy::{Signal, StrategyMetadata};
-use anyhow::Result;
-
-/// Strategy trait for crypto domain (blocking variant, called from background thread).
-pub trait CryptoStrategy: Send + Sync {
-    fn id(&self) -> &'static str;
-    fn metadata(&self) -> StrategyMetadata;
-    /// Returns a signal if edge is found, or None.
-    fn signal(&self) -> Result<Option<Signal>>;
-}
-
 /// A stored crypto signal with display metadata.
 #[derive(Clone, Debug)]
 pub struct StoredCryptoSignal {

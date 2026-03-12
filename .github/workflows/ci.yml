@@ -33,6 +33,11 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
 
+      - name: Install Tauri system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
+
       - name: Check formatting
         run: cargo fmt -- --check
 
@@ -51,6 +56,10 @@ jobs:
         with:
           components: llvm-tools-preview
       - uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install Tauri system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev
       - uses: actions/cache@v4
         with:
           path: |
@@ -60,10 +69,38 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-llvm-${{ hashFiles('**/Cargo.lock') }}
-      - name: Coverage (95% threshold, excludes TUI event loop)
+      - name: Coverage (95% threshold, excludes IPC commands)
         run: |
           cargo llvm-cov \
             --all-features \
             --workspace \
-            --ignore-filename-regex "tui/runner\.rs" \
+            --ignore-filename-regex "(commands/|app_state\.rs)" \
             --fail-under-lines 95
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: ui/package-lock.json
+
+      - name: Install deps
+        run: cd ui && npm ci
+
+      - name: Type check
+        run: cd ui && npx tsc --noEmit
+
+      - name: Lint
+        run: cd ui && npm run lint
+
+      - name: Test
+        run: cd ui && npm run test
+
+      - name: Build
+        run: cd ui && npm run build

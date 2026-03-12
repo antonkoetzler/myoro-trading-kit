@@ -1,5 +1,5 @@
 //! Integration tests for the Backtester tab simulation toolbox.
-use myoro_polymarket_terminal::backtester::{BacktestTool, BacktesterState};
+use myoro_trading_kit::backtester::{BacktestTool, BacktesterState};
 use std::io::Write;
 
 #[test]
@@ -84,7 +84,7 @@ fn backtest_tooltip_all_tools_have_nonempty_text() {
 
 #[test]
 fn backtest_variance_reduction_better_than_basic() {
-    use myoro_polymarket_terminal::backtester::monte_carlo::{
+    use myoro_trading_kit::backtester::monte_carlo::{
         simulate_antithetic, simulate_basic, McParams,
     };
 

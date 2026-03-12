@@ -7,6 +7,7 @@ pub mod poisson;
 pub mod rule_1_20;
 pub mod toml_strategy;
 
+use crate::shared::strategy::Signal;
 use crate::sports::discovery::FixtureWithStats;
 use crate::sports::signals::SportsSignal;
 
@@ -20,8 +21,12 @@ pub trait SportsStrategy: Send + Sync {
     fn enabled(&self) -> bool;
     fn set_enabled(&mut self, v: bool);
     fn auto_execute(&self) -> bool;
-    /// Scan fixtures and return signals.
+    /// Scan fixtures and return domain signals.
     fn scan(&self, fixtures: &[FixtureWithStats]) -> Vec<SportsSignal>;
+    /// Unified dispatch: extract shared Signal from each SportsSignal.
+    fn signals(&self, fixtures: &[FixtureWithStats]) -> Vec<Signal> {
+        self.scan(fixtures).into_iter().map(|s| s.signal).collect()
+    }
 }
 
 /// Strategy registry: holds all enabled strategies and runs scans.

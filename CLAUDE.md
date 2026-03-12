@@ -11,28 +11,30 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **[rust-standards.md](docs/ai-rules/rust-standards.md)** — Follow [docs/standards/STANDARDS.md](docs/standards/STANDARDS.md) for all Rust code.
 - **[concise-responses.md](docs/ai-rules/concise-responses.md)** — Be concise and to-the-point. No long descriptions.
 - **[plans-contain-only-plan.md](docs/ai-rules/plans-contain-only-plan.md)** — Plan documents contain only concrete steps. No "TBD" sections.
-- **[visual-and-themes.md](docs/ai-rules/visual-and-themes.md)** — When changing TUI colors, apply to ALL theme presets.
+- **[visual-and-themes.md](docs/ai-rules/visual-and-themes.md)** — When changing GUI colors, apply to ALL theme presets.
 - **[file-size.md](docs/ai-rules/file-size.md)** — Max 300 lines per file. Split complex domains into subdirectory files. No stubs.
 - **[testing-and-quality.md](docs/ai-rules/testing-and-quality.md)** — Keep tests in sync, run fmt/clippy, maintain line coverage threshold.
 
 ## Project Context
 
-**Polymarket Arbitrage Terminal** — Rust TUI for automated Polymarket trading across crypto, sports, and weather markets.
+**Myoro Trading Kit** — Rust GUI for automated Polymarket trading across crypto, sports, and weather markets.
 
-**Stack:** Rust + Ratatui + polymarket-client-sdk + Tokio
+**Stack:** Rust (lib) + Tauri v2 + React + ShadCN + TypeScript (GUI). All trading logic in Rust; TypeScript is display only.
 
 **Architecture:**
-- `src/main.rs` — Entry point; loads config and launches TUI
+- `src/main.rs` — Tauri entry point; spawns 3 background threads (live poller, copy poller, MM cycle)
+- `src/app_state.rs` — AppState (Arc-wrapped domain state for Tauri managed state)
+- `src/commands/` — IPC bridge (one file per domain, thin wrappers over domain logic)
+- `src/commands/dto/` — Serializable DTO structs for Tauri IPC (`#[derive(Serialize, Clone)]`)
 - `src/config/` — Environment and configuration loading
 - `src/pm/` — Polymarket client wrapper (CLOB, Gamma, Data, WebSocket)
-- `src/tui/` — Terminal UI (Ratatui); layouts, themes, app state
 - `src/strategies/` — Domain-specific strategies (crypto, sports, weather)
   - Each has `data/` (external feeds) and `backtest/` subdirectories
 - `src/discover/` — Market discovery and search
 - `src/copy_trading/` — Copy trader monitoring and execution
-- `src/trader_stats/` — Trader profile analysis
 - `src/live/` — Live trading execution
 - `src/shared/` — Shared utilities and types
+- `ui/` — React 18 + ShadCN + Tailwind + ECharts frontend (display only; no trading logic)
 
 **Key Design Patterns:**
 - Domain code isolated under `src/strategies/<domain>/`
@@ -58,7 +60,14 @@ All commands are in the `Makefile`. Run `make help` to list them. Never run raw 
 | `make test-v` | Run tests with output |
 | `make test-live` | Run ignored (live) tests |
 | `make coverage` | HTML coverage report |
-| `make ci` | Full CI pipeline locally |
+| `make ci` | Full CI pipeline locally (fmt-check + lint + test) |
+| `make ci-full` | Full CI + frontend (Rust + ui-test) |
+| `make ui-install` | Install frontend npm deps |
+| `make ui-dev` | Start Vite dev server |
+| `make ui-build` | Build frontend for production |
+| `make ui-test` | Run Vitest frontend tests |
+| `make dev` | `cargo tauri dev` (full app) |
+| `make build-tauri` | `cargo tauri build` (release) |
 | `make creds` | Derive Polymarket API credentials |
 
 ## Environment Setup

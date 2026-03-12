@@ -50,7 +50,7 @@ impl HistoricalDataProvider for OpenMeteoProvider {
     }
 
     fn name(&self) -> &str {
-        "Open-Meteo Archive"
+        "Weather Data · Open Meteo"
     }
 
     fn domain(&self) -> Domain {

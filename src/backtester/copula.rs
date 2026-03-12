@@ -1,3 +1,4 @@
+// NOTE: Exceeds 300-line limit — Gaussian and Student-t copula implementations with Cholesky decomposition; the two models share math helpers that must stay co-located. See docs/ai-rules/file-size.md
 //! Gaussian and Student-t copula for modeling correlated binary market baskets.
 use rand::rngs::SmallRng;
 use rand::SeedableRng;

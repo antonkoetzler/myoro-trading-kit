@@ -123,6 +123,8 @@ impl ArbScannerStrategy {
                     "edge": edge,
                     "note": "Buy YES on Polymarket, NO on Kalshi — guaranteed profit",
                 })),
+                stop_loss_pct: None,
+                take_profit_pct: None,
             },
             f.clone(),
         ))

@@ -2,9 +2,8 @@
 //! Skipped by default — require real credentials and network access.
 //! Run with: cargo test --test pm_live_integration -- --ignored
 
-use myoro_polymarket_terminal::config::{Config, ExecutionMode};
-use myoro_polymarket_terminal::pm::clob::Side;
-use myoro_polymarket_terminal::pm::{ClobAuth, ClobClient, DataClient, Order, OrderType};
+use myoro_trading_kit::pm::clob::Side;
+use myoro_trading_kit::pm::{ClobAuth, ClobClient, DataClient, Order, OrderType};
 
 /// Helper: build ClobClient from environment or skip test.
 fn clob_from_env() -> Option<ClobClient> {

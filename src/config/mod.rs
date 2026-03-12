@@ -40,6 +40,9 @@ pub fn load() -> Result<Config> {
         mm_max_inventory_usd: types::default_mm_max_inventory(),
         mm_max_markets: types::default_mm_max_markets(),
         mm_min_volume_usd: types::default_mm_min_volume(),
+        binance_lag_assets: types::default_binance_lag_assets(),
+        weather_cities: types::default_weather_cities(),
+        balldontlie_key: std::env::var("BALLDONTLIE_KEY").unwrap_or_default(),
     };
     if let Ok(data) = std::fs::read_to_string(CONFIG_JSON) {
         if let Ok(file) = serde_json::from_str::<JsonConfigFile>(&data) {
@@ -95,6 +98,12 @@ pub fn load() -> Result<Config> {
             if let Some(v) = file.mm_min_volume_usd {
                 config.mm_min_volume_usd = v.max(0.0);
             }
+            if !file.binance_lag_assets.is_empty() {
+                config.binance_lag_assets = file.binance_lag_assets;
+            }
+            if !file.weather_cities.is_empty() {
+                config.weather_cities = file.weather_cities;
+            }
         }
     }
     Ok(config)
@@ -146,6 +155,8 @@ pub fn save_config(c: &Config) -> Result<()> {
         mm_max_inventory_usd: Some(c.mm_max_inventory_usd),
         mm_max_markets: Some(c.mm_max_markets),
         mm_min_volume_usd: Some(c.mm_min_volume_usd),
+        binance_lag_assets: c.binance_lag_assets.clone(),
+        weather_cities: c.weather_cities.clone(),
     };
     let s = serde_json::to_string_pretty(&file)?;
     std::fs::write(CONFIG_JSON, s)?;
@@ -179,6 +190,9 @@ mod tests {
             mm_max_inventory_usd: types::default_mm_max_inventory(),
             mm_max_markets: types::default_mm_max_markets(),
             mm_min_volume_usd: types::default_mm_min_volume(),
+            binance_lag_assets: types::default_binance_lag_assets(),
+            weather_cities: types::default_weather_cities(),
+            balldontlie_key: String::new(),
         }
     }
 
@@ -233,6 +247,8 @@ mod tests {
             mm_max_inventory_usd: Some(cfg.mm_max_inventory_usd),
             mm_max_markets: Some(cfg.mm_max_markets),
             mm_min_volume_usd: Some(cfg.mm_min_volume_usd),
+            binance_lag_assets: cfg.binance_lag_assets.clone(),
+            weather_cities: cfg.weather_cities.clone(),
         };
         let s = serde_json::to_string_pretty(&file).unwrap();
         std::fs::write(&path, &s).unwrap();

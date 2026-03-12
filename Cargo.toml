@@ -1,20 +1,17 @@
 [package]
-name = "myoro-polymarket-terminal"
+name = "myoro-trading-kit"
 version = "0.1.0"
 edition = "2021"
-description = "Polymarket arbitrage TUI — crypto, sports, weather"
+description = "Polymarket arbitrage trading kit — crypto, sports, weather"
 authors = []
 license = "MIT"
 
 [dependencies]
-ratatui = "0.29"
-crossterm = "0.28"
 tokio = { version = "1", features = ["full"] }
 dotenvy = "0.15"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 anyhow = "1"
-thiserror = "2"
 serde_json = "1"
 polymarket-client-sdk = { version = "0.4", default-features = false, features = ["clob", "ws", "data", "gamma"] }
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json"] }
@@ -23,6 +20,10 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 rand = { version = "0.8", features = ["small_rng"] }
 rhai = { version = "1", features = ["sync"] }
 rusqlite = { version = "0.31", features = ["bundled"] }
+tauri = { version = "2" }
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
 
 [dev-dependencies]
 mockito = "1"
@@ -31,6 +32,4 @@ mockito = "1"
 unsafe_code = "deny"
 
 [lints.clippy]
-# Warn on unwrap/expect outside tests (don't error so existing code compiles)
-unwrap_used = "warn"
-expect_used = "warn"
+# unwrap_used / expect_used: denied in production code via cfg_attr in lib.rs

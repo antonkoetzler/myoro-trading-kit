@@ -125,6 +125,8 @@ impl Rule120Strategy {
                     "fav_market_price": fav_price,
                     "model_prob": model_prob,
                 })),
+                stop_loss_pct: None,
+                take_profit_pct: None,
             },
             f.clone(),
         ))

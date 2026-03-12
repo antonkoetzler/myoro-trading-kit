@@ -30,7 +30,7 @@ impl HistoricalDataProvider for PolymarketProvider {
     }
 
     fn name(&self) -> &str {
-        "Polymarket CLOB"
+        "Market History · Polymarket"
     }
 
     fn domain(&self) -> Domain {

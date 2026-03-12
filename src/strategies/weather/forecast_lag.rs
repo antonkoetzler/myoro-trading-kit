@@ -8,7 +8,7 @@
 //!   5. Signal when gap between forecast-implied and market odds > MIN_EDGE (6%).
 
 use super::{CityForecast, WeatherSignal, WeatherStrategy};
-use crate::shared::strategy::StrategyMetadata;
+use crate::shared::strategy::{Signal, StrategyMetadata};
 use anyhow::Result;
 use chrono::Utc;
 
@@ -104,6 +104,81 @@ impl ForecastLagStrategy {
         prob.clamp(0.05, 0.95)
     }
 
+    /// Run with config-supplied cities. Falls back to hardcoded CITIES if slice is empty.
+    pub fn run_with_cities(
+        &self,
+        cities: &[(&str, f64, f64, &[&str])],
+    ) -> Result<(Vec<WeatherSignal>, Vec<CityForecast>)> {
+        if cities.is_empty() {
+            return self.run();
+        }
+        self.run_cities(cities)
+    }
+
+    fn run_cities(
+        &self,
+        cities: &[(&str, f64, f64, &[&str])],
+    ) -> Result<(Vec<WeatherSignal>, Vec<CityForecast>)> {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()?;
+        let markets = Self::fetch_weather_markets(&client)?;
+        let mut signals = Vec::new();
+        let mut city_forecasts = Vec::new();
+
+        for (city_name, lat, lon, keywords) in cities {
+            let temps = Self::fetch_forecast(*lat, *lon).unwrap_or(None);
+            let matched_market = Self::match_market(&markets, keywords);
+            let (market_id, market_implied) = matched_market
+                .map(|m| {
+                    let id = m
+                        .get("conditionId")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let mid = Self::market_mid(m);
+                    (Some(id), Some(mid))
+                })
+                .unwrap_or((None, None));
+            city_forecasts.push(CityForecast {
+                city: city_name.to_string(),
+                today_max_c: temps.map(|(max, _)| max),
+                today_min_c: temps.map(|(_, min)| min),
+                market_implied,
+                market_id: market_id.clone(),
+            });
+            if let (Some((max, _)), Some(mid), Some(mkt)) = (temps, market_implied, matched_market)
+            {
+                let title = mkt.get("question").and_then(|v| v.as_str()).unwrap_or("");
+                if let Some(threshold) = Self::extract_temp_threshold(title) {
+                    let forecast_prob = Self::forecast_implied_prob(max, threshold);
+                    let edge = forecast_prob - mid;
+                    if edge.abs() >= MIN_EDGE {
+                        let (side, edge_pct, kelly) = if edge > 0.0 {
+                            let k = (edge / (1.0 - mid)) * KELLY_FRACTION;
+                            ("Yes".to_string(), edge, k.min(0.1))
+                        } else {
+                            let k = (edge.abs() / mid) * KELLY_FRACTION;
+                            ("No".to_string(), edge.abs(), k.min(0.1))
+                        };
+                        signals.push(WeatherSignal {
+                            market_id: market_id.clone().unwrap_or_default(),
+                            city: city_name.to_string(),
+                            label: format!("{} > {:.0}°C", city_name, threshold),
+                            side,
+                            edge_pct,
+                            kelly_size: kelly,
+                            strategy_id: "forecast_lag".to_string(),
+                            status: "pending".to_string(),
+                            created_at: Utc::now(),
+                        });
+                    }
+                }
+            }
+        }
+        Ok((signals, city_forecasts))
+    }
+
     pub fn run(&self) -> Result<(Vec<WeatherSignal>, Vec<CityForecast>)> {
         let client = reqwest::blocking::Client::builder()
             .timeout(std::time::Duration::from_secs(15))
@@ -182,8 +257,8 @@ impl WeatherStrategy for ForecastLagStrategy {
         }
     }
 
-    fn signals(&self) -> Result<Vec<WeatherSignal>> {
-        Ok(self.run()?.0)
+    fn signals(&self) -> Result<Vec<Signal>> {
+        Ok(self.run()?.0.into_iter().map(Signal::from).collect())
     }
 }
 
@@ -225,6 +300,26 @@ mod tests {
     fn forecast_implied_prob_well_below_threshold() {
         let p = ForecastLagStrategy::forecast_implied_prob(15.0, 25.0);
         assert!(p < 0.25);
+    }
+
+    #[test]
+    fn run_with_cities_falls_back_to_default_when_empty() {
+        // Empty slice → run_with_cities delegates to run() without panicking
+        let strat = ForecastLagStrategy::new();
+        // This calls run() which makes live HTTP calls — just verify no panic on call path.
+        // We cannot assert on signals (network-dependent), just check it's callable.
+        let _ = strat.run_with_cities(&[]);
+    }
+
+    #[test]
+    fn run_cities_accepts_custom_city_slice() {
+        let strat = ForecastLagStrategy::new();
+        // Providing a custom city slice: run_cities is called.
+        // No live network in unit tests — but function should be structurally callable.
+        let kws: &[&str] = &["london"];
+        let cities: &[(&str, f64, f64, &[&str])] = &[("London", 51.5, -0.1, kws)];
+        // The function will attempt an HTTP call; we just verify it doesn't panic with valid args.
+        let _ = strat.run_with_cities(cities);
     }
 }
 

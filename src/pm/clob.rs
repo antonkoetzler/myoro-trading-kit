@@ -66,7 +66,7 @@ impl ClobClient {
     pub fn new(host: &str) -> Self {
         let http = Client::builder()
             .timeout(Duration::from_secs(15))
-            .user_agent("myoro-polymarket-terminal/0.1")
+            .user_agent("myoro-trading-kit/0.1")
             .build()
             .unwrap_or_default();
         Self {

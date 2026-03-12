@@ -1,12 +1,12 @@
 //! End-to-end integration tests for paper trading and config persistence.
 //! These tests exercise real I/O (temp files) but do not require network access.
 
-use myoro_polymarket_terminal::config::{
+use myoro_trading_kit::config::{
     BinanceConfig, Config, CopySizing, ExecutionMode, JsonConfigFile, PolymarketConfig,
 };
-use myoro_polymarket_terminal::live::portfolio::TradeRow;
-use myoro_polymarket_terminal::shared::execution::Executor;
-use myoro_polymarket_terminal::shared::strategy::Side;
+use myoro_trading_kit::live::portfolio::TradeRow;
+use myoro_trading_kit::shared::execution::Executor;
+use myoro_trading_kit::shared::strategy::Side;
 use std::collections::HashMap;
 use std::io::Write as _;
 
@@ -106,6 +106,9 @@ fn build_test_config() -> Config {
         mm_max_inventory_usd: 200.0,
         mm_max_markets: 5,
         mm_min_volume_usd: 1000.0,
+        binance_lag_assets: vec!["BTCUSDT".to_string()],
+        weather_cities: vec![],
+        balldontlie_key: String::new(),
     }
 }
 
@@ -132,6 +135,8 @@ fn config_file_roundtrip() {
         mm_max_inventory_usd: Some(cfg.mm_max_inventory_usd),
         mm_max_markets: Some(cfg.mm_max_markets),
         mm_min_volume_usd: Some(cfg.mm_min_volume_usd),
+        binance_lag_assets: cfg.binance_lag_assets.clone(),
+        weather_cities: cfg.weather_cities.clone(),
     };
 
     let serialized = serde_json::to_string_pretty(&file).expect("serialize");

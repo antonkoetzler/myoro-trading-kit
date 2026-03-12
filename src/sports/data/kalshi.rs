@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 
-const USER_AGENT: &str = "Mozilla/5.0 (compatible; polymarket-terminal/1.0)";
+const USER_AGENT: &str = "Mozilla/5.0 (compatible; trading-kit/1.0)";
 const KALSHI_MARKETS_URL: &str =
     "https://api.elections.kalshi.com/trade-api/v2/markets?limit=200&status=open&series_ticker=SOCCER";
 

@@ -6,14 +6,32 @@ pub mod forecast_lag;
 
 pub use forecast_lag::ForecastLagStrategy;
 
-use crate::shared::strategy::StrategyMetadata;
+use crate::shared::strategy::{Side, Signal, StrategyMetadata};
 use anyhow::Result;
 
 /// Strategy trait for weather domain (blocking).
+/// `signals()` returns the unified `Signal` type for dispatch/execution.
 pub trait WeatherStrategy: Send + Sync {
     fn id(&self) -> &'static str;
     fn metadata(&self) -> StrategyMetadata;
-    fn signals(&self) -> Result<Vec<WeatherSignal>>;
+    fn signals(&self) -> Result<Vec<Signal>>;
+}
+
+impl From<WeatherSignal> for Signal {
+    fn from(w: WeatherSignal) -> Self {
+        Signal {
+            market_id: w.market_id,
+            side: if w.side == "Yes" { Side::Yes } else { Side::No },
+            confidence: w.edge_pct.clamp(0.0, 1.0),
+            edge_pct: w.edge_pct,
+            kelly_size: w.kelly_size,
+            auto_execute: false,
+            strategy_id: w.strategy_id,
+            metadata: None,
+            stop_loss_pct: None,
+            take_profit_pct: None,
+        }
+    }
 }
 
 /// A stored weather signal.

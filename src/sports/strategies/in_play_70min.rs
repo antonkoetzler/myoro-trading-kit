@@ -140,6 +140,8 @@ impl InPlay70MinStrategy {
                     "exit_target": exit_target,
                     "note": "Live: season-avg xG used (not per-match); Sofascore data",
                 })),
+                stop_loss_pct: None,
+                take_profit_pct: None,
             },
             f.clone(),
         ))

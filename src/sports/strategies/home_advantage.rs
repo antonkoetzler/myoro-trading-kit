@@ -102,8 +102,11 @@ impl HomeAdvantageStrategy {
                     "away": f.fixture.away,
                     "estimated_home_prob": p_home,
                     "market_yes": market.yes_price,
+
                     "home_win_rate": f.home_win_rate,
                 })),
+                stop_loss_pct: None,
+                take_profit_pct: None,
             },
             f.clone(),
         ))

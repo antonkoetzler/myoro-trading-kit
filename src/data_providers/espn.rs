@@ -24,6 +24,62 @@ impl EspnProvider {
         }
     }
 
+    /// Fetch team standings for a sport/league.
+    pub fn fetch_standings(&self, sport: &str, league: &str) -> anyhow::Result<TimeSeries> {
+        let url = format!(
+            "https://site.api.espn.com/apis/site/v2/sports/{}/{}/standings",
+            sport, league
+        );
+        let resp = self.client.get(&url).send()?;
+        let body: serde_json::Value = resp.json()?;
+        let mut ts = TimeSeries::new("espn", &format!("{}:{}", sport, league));
+
+        // ESPN standings: {"standings": [{"entries": [{"team": {...}, "stats": [...]}]}]}
+        let entries = body
+            .get("standings")
+            .and_then(|s| s.as_array())
+            .and_then(|a| a.first())
+            .and_then(|g| g.get("entries"))
+            .and_then(|e| e.as_array());
+
+        let now = chrono::Utc::now().timestamp();
+        if let Some(entries) = entries {
+            for (i, entry) in entries.iter().enumerate() {
+                let stats = entry.get("stats").and_then(|s| s.as_array());
+                let wins = stats
+                    .and_then(|s| {
+                        s.iter()
+                            .find(|v| v.get("name").and_then(|n| n.as_str()) == Some("wins"))
+                    })
+                    .and_then(|v| v.get("value").and_then(|x| x.as_f64()))
+                    .unwrap_or(0.0);
+                let losses = stats
+                    .and_then(|s| {
+                        s.iter()
+                            .find(|v| v.get("name").and_then(|n| n.as_str()) == Some("losses"))
+                    })
+                    .and_then(|v| v.get("value").and_then(|x| x.as_f64()))
+                    .unwrap_or(0.0);
+                let win_pct = if wins + losses > 0.0 {
+                    wins / (wins + losses)
+                } else {
+                    0.0
+                };
+
+                ts.points.push(DataPoint {
+                    timestamp: now - (entries.len() - i) as i64,
+                    values: vec![
+                        ("wins".into(), wins),
+                        ("losses".into(), losses),
+                        ("win_pct".into(), win_pct),
+                    ],
+                });
+            }
+        }
+
+        Ok(ts)
+    }
+
     /// Map a symbol to an ESPN sport/league path.
     fn resolve_league(symbol: &str) -> (&'static str, &'static str) {
         match symbol.to_lowercase().as_str() {
@@ -52,7 +108,7 @@ impl HistoricalDataProvider for EspnProvider {
     }
 
     fn name(&self) -> &str {
-        "ESPN Sports"
+        "Game Results · ESPN"
     }
 
     fn domain(&self) -> Domain {
@@ -61,6 +117,12 @@ impl HistoricalDataProvider for EspnProvider {
 
     fn fetch_history(&self, query: &HistoryQuery) -> anyhow::Result<TimeSeries> {
         let (sport, league) = Self::resolve_league(&query.symbol);
+
+        // Dispatch to standings if interval == "standings"
+        if query.interval == "standings" {
+            return self.fetch_standings(sport, league);
+        }
+
         let url = format!(
             "https://site.api.espn.com/apis/site/v2/sports/{}/{}/scoreboard",
             sport, league

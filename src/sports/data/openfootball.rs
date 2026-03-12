@@ -4,7 +4,7 @@ use crate::sports::data::scraper::Fixture;
 use anyhow::{Context, Result};
 use serde::Deserialize;
 
-const USER_AGENT: &str = "Mozilla/5.0 (compatible; polymarket-terminal/1.0)";
+const USER_AGENT: &str = "Mozilla/5.0 (compatible; trading-kit/1.0)";
 
 /// OpenFootball raw JSON fixture entry.
 #[derive(Debug, Deserialize)]

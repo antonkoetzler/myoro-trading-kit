@@ -230,6 +230,18 @@ impl BacktesterState {
         })
     }
 
+    /// Load synthetic trades with explicit parameters (from dialog dropdowns).
+    pub fn load_synthetic(&self, n: usize, win_rate: f64, avg_win: f64, avg_loss: f64, seed: u64) {
+        let trades = data::generate_synthetic_seeded(n, win_rate, avg_win, avg_loss, seed);
+        let metrics = PerformanceMetrics::compute(&trades);
+        if let Ok(mut guard) = self.trades.write() {
+            *guard = trades;
+        }
+        if let Ok(mut guard) = self.current_metrics.write() {
+            *guard = Some(metrics);
+        }
+    }
+
     /// Load trades based on selected strategy and data source.
     pub fn load_trades(&self, strategy_idx: usize, data_source_idx: usize) {
         let strategy_id = self
@@ -319,6 +331,128 @@ impl BacktesterState {
             *guard = calib;
         }
         self.is_running.store(false, Ordering::SeqCst);
+    }
+}
+
+// ── Convenience accessors for the GUI layer ─────────────────────────────────
+impl BacktesterState {
+    pub fn strategy_count(&self) -> usize {
+        self.strategies.len()
+    }
+
+    pub fn strategy_name(&self, idx: usize) -> Option<String> {
+        self.strategies.get(idx).map(|s| s.name.clone())
+    }
+
+    pub fn strategy_domain(&self, idx: usize) -> Option<String> {
+        self.strategies.get(idx).map(|s| s.domain.clone())
+    }
+
+    pub fn tool_count(&self) -> usize {
+        BacktestTool::all().len()
+    }
+
+    pub fn tool_name(&self, idx: usize) -> Option<String> {
+        BacktestTool::all().get(idx).map(|t| t.name().to_string())
+    }
+
+    pub fn tool_about(&self, idx: usize) -> Option<String> {
+        BacktestTool::all()
+            .get(idx)
+            .map(|t| t.tooltip().to_string())
+    }
+
+    pub fn data_source_count(&self) -> usize {
+        self.data_sources.len()
+    }
+
+    pub fn data_source_at(&self, idx: usize) -> Option<(String, String)> {
+        self.data_sources
+            .get(idx)
+            .map(|d| (d.id.clone(), d.name.clone()))
+    }
+
+    pub fn get_tool_params(&self, tool_idx: usize) -> Vec<ToolParam> {
+        self.tool_params
+            .read()
+            .ok()
+            .and_then(|p| p.get(tool_idx).cloned())
+            .unwrap_or_default()
+    }
+
+    pub fn tool_param_count(&self, tool_idx: usize) -> usize {
+        self.get_tool_params(tool_idx).len()
+    }
+
+    pub fn adjust_param(&self, tool_idx: usize, param_idx: usize, delta: f64) {
+        if let Ok(mut guard) = self.tool_params.write() {
+            if let Some(params) = guard.get_mut(tool_idx) {
+                if let Some(p) = params.get_mut(param_idx) {
+                    p.value = (p.value + delta * p.step).clamp(p.min, p.max);
+                }
+            }
+        }
+    }
+
+    pub fn set_param_value(&self, tool_idx: usize, param_idx: usize, val: f64) {
+        if let Ok(mut guard) = self.tool_params.write() {
+            if let Some(params) = guard.get_mut(tool_idx) {
+                if let Some(p) = params.get_mut(param_idx) {
+                    p.value = val.clamp(p.min, p.max);
+                }
+            }
+        }
+    }
+
+    pub fn get_equity_curve(&self) -> Vec<f64> {
+        self.tool_result
+            .read()
+            .ok()
+            .and_then(|r| r.as_ref().map(|tr| tr.equity_curve.clone()))
+            .unwrap_or_default()
+    }
+
+    pub fn get_perm_curves(&self) -> Option<Vec<Vec<f64>>> {
+        self.tool_result.read().ok().and_then(|r| {
+            r.as_ref().and_then(|tr| {
+                if tr.extra_curves.is_empty() {
+                    None
+                } else {
+                    Some(tr.extra_curves.clone())
+                }
+            })
+        })
+    }
+
+    pub fn get_metrics(&self) -> Vec<f64> {
+        self.current_metrics
+            .read()
+            .ok()
+            .and_then(|m| m.as_ref().map(|pm| pm.to_vec()))
+            .unwrap_or_default()
+    }
+
+    pub fn tool_results(&self, _tool_idx: usize) -> Option<(String, Vec<String>)> {
+        self.tool_result.read().ok().and_then(|r| {
+            r.as_ref().map(|tr| {
+                let summary = tr
+                    .summary
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect::<Vec<_>>()
+                    .join("  ");
+                let details = tr
+                    .summary
+                    .iter()
+                    .map(|(k, v)| format!("{}: {}", k, v))
+                    .collect();
+                (summary, details)
+            })
+        })
+    }
+
+    pub fn is_running_now(&self) -> bool {
+        self.is_running.load(Ordering::SeqCst)
     }
 }
 

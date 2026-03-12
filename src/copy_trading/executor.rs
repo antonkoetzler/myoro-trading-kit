@@ -64,7 +64,7 @@ pub fn execute_copy_trades(
     if !cfg.copy_auto_execute {
         return;
     }
-    let exec = Executor::new(cfg.execution_mode, &cfg.paper_trades_file);
+    let exec = Executor::new(cfg.execution_mode, &cfg.paper_trades_file).with_domain("copy");
     for r in trades {
         if r.condition_id.is_none() || r.asset_id.is_none() {
             continue;
@@ -136,6 +136,9 @@ mod tests {
             mm_max_inventory_usd: 200.0,
             mm_max_markets: 5,
             mm_min_volume_usd: 1000.0,
+            binance_lag_assets: vec!["BTCUSDT".to_string()],
+            weather_cities: vec![],
+            balldontlie_key: String::new(),
         }
     }
 

@@ -27,6 +27,7 @@ impl Default for WeatherState {
 pub fn fetch_weather(
     weather: &RwLock<WeatherState>,
     weather_logs: &RwLock<Vec<(LogLevel, String)>>,
+    weather_cities: &[crate::config::WeatherCity],
 ) {
     let meteo = match crate::weather::data::OpenMeteoClient::new() {
         Ok(m) => m,
@@ -88,7 +89,34 @@ pub fn fetch_weather(
     if forecast_lag_enabled {
         push_log_to(weather_logs, LogLevel::Info, "Running ForecastLag…".into());
         let strategy = ForecastLagStrategy::new();
-        match strategy.run() {
+        // Build city tuples from config; fall back to hardcoded if empty.
+        let config_cities: Vec<(String, f64, f64, Vec<String>)> = weather_cities
+            .iter()
+            .map(|c| {
+                (
+                    c.name.clone(),
+                    c.lat,
+                    c.lon,
+                    vec![c.polymarket_keyword.clone()],
+                )
+            })
+            .collect();
+        let city_tuples: Vec<(&str, f64, f64, Vec<&str>)> = config_cities
+            .iter()
+            .map(|(n, lat, lon, kws)| {
+                (
+                    n.as_str(),
+                    *lat,
+                    *lon,
+                    kws.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+                )
+            })
+            .collect();
+        let city_refs: Vec<(&str, f64, f64, &[&str])> = city_tuples
+            .iter()
+            .map(|(n, lat, lon, kws)| (*n, *lat, *lon, kws.as_slice()))
+            .collect();
+        match strategy.run_with_cities(&city_refs) {
             Ok((new_signals, city_forecasts)) => {
                 let n = new_signals.len();
                 if let Ok(mut w) = weather.write() {

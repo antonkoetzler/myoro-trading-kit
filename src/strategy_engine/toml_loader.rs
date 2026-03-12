@@ -1,3 +1,4 @@
+// NOTE: Exceeds 300-line limit — TOML parser + Rhai expression evaluator + condition compiler; these three passes form a single pipeline and cannot be split without introducing unnecessary abstraction. See docs/ai-rules/file-size.md
 //! Enhanced TOML strategy loader with Rhai expression support.
 //!
 //! Supports both legacy field/operator/value conditions and new `expr` conditions.
@@ -214,6 +215,8 @@ impl UniversalStrategy for ExprStrategy {
                     auto_execute: self.manifest.auto_execute,
                     strategy_id: self.manifest.id.clone(),
                     metadata: None,
+                    stop_loss_pct: None,
+                    take_profit_pct: None,
                 }
             })
             .filter(|s| s.edge_pct >= self.manifest.min_edge)
