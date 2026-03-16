@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **[visual-and-themes.md](docs/ai-rules/visual-and-themes.md)** — When changing GUI colors, apply to ALL theme presets.
 - **[file-size.md](docs/ai-rules/file-size.md)** — Max 300 lines per file. Split complex domains into subdirectory files. No stubs.
 - **[testing-and-quality.md](docs/ai-rules/testing-and-quality.md)** — Keep tests in sync, run fmt/clippy, maintain line coverage threshold.
+- **[bun-only.md](docs/ai-rules/bun-only.md)** — Use bun exclusively. Never npm, npx, yarn, or pnpm.
 
 ## Project Context
 
@@ -62,7 +63,7 @@ All commands are in the `Makefile`. Run `make help` to list them. Never run raw 
 | `make coverage` | HTML coverage report |
 | `make ci` | Full CI pipeline locally (fmt-check + lint + test) |
 | `make ci-full` | Full CI + frontend (Rust + ui-test) |
-| `make ui-install` | Install frontend npm deps |
+| `make ui-install` | Install frontend deps (bun) |
 | `make ui-dev` | Start Vite dev server |
 | `make ui-build` | Build frontend for production |
 | `make ui-test` | Run Vitest frontend tests |

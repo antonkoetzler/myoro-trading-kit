@@ -16,7 +16,7 @@ export function DataSourceConfig() {
             }`}
           >
             <div className="font-medium">{s.name}</div>
-            <div className="text-muted-foreground">{s.domain}</div>
+            <div className={selectedDataSourceIdx === i ? 'text-primary-foreground/70' : 'text-muted-foreground'}>{s.domain}</div>
           </button>
         ))}
       </div>

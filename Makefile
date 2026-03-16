@@ -3,6 +3,7 @@
 
 ## Build
 build:
+	cd ui && bun install && bun run build
 	cargo build
 
 build-release:
@@ -10,6 +11,7 @@ build-release:
 
 ## Run
 run:
+	cd ui && bun install && bun run build
 	cargo run
 
 run-release:
@@ -50,23 +52,23 @@ coverage:
 
 ## Frontend
 ui-install:
-	cd ui && npm install
+	cd ui && bun install
 
 ui-dev:
-	cd ui && npm run dev
+	cd ui && bun run dev
 
 ui-build:
-	cd ui && npm run build
+	cd ui && bun run build
 
 ui-test:
-	cd ui && npm run test
+	cd ui && bun run test
 
 ui-coverage:
-	cd ui && npm run coverage
+	cd ui && bun run coverage
 
 ## Tauri
 dev:
-	cargo tauri dev
+	cargo tauri dev --config '{"build":{"devUrl":"http://localhost:5173","beforeDevCommand":"cd ui && bun run dev"}}'
 
 build-tauri:
 	cargo tauri build

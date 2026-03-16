@@ -2,6 +2,7 @@ import { useCryptoStore } from '@/stores/crypto'
 import { usePoll } from '@/hooks/usePoll'
 import { DataTable } from '@/components/shared/DataTable'
 import { SignalBadge } from '@/components/shared/SignalBadge'
+import { StrategyToggle } from '@/components/shared/StrategyToggle'
 
 export function CryptoTab() {
   const { state, refresh, toggleStrategy, dismissSignal } = useCryptoStore()
@@ -17,14 +18,9 @@ export function CryptoTab() {
         <div className="text-sm font-mono">{state.btc_usdt || '—'}</div>
         <div className="text-xs font-bold text-muted-foreground uppercase mt-2">Strategies</div>
         {state.strategies.map((s, i) => (
-          <div key={s.id} className="flex items-center justify-between">
+          <div key={s.id} className="flex items-center justify-between gap-2">
             <span className="text-sm">{s.name}</span>
-            <button
-              onClick={() => toggleStrategy(i, !s.enabled)}
-              className={`text-xs px-2 py-0.5 rounded ${s.enabled ? 'bg-success/20 text-success' : 'bg-muted text-muted-foreground'}`}
-            >
-              {s.enabled ? 'ON' : 'OFF'}
-            </button>
+            <StrategyToggle enabled={s.enabled} onToggle={(v) => toggleStrategy(i, v)} />
           </div>
         ))}
       </div>

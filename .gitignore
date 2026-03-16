@@ -12,3 +12,7 @@ gen/
 
 # Editor / tool state
 .claude/
+
+# Frontend
+ui/node_modules/
+ui/dist/

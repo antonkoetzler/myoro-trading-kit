@@ -3,10 +3,8 @@
   "version": "0.1.0",
   "identifier": "com.myoro.trading-kit",
   "build": {
-    "frontendDist": "../ui/dist",
-    "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "cd ui && npm run dev",
-    "beforeBuildCommand": "cd ui && npm run build"
+    "frontendDist": "ui/dist",
+    "beforeBuildCommand": "cd ui && bun run build"
   },
   "app": {
     "windows": [
